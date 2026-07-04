@@ -1,7 +1,7 @@
 (ns quickjs.binary
   "QuickJS WASM binary loading contract.
 
-   Split out of kotoba-lang/browser (ADR-2607041700) — the only file under
+   Split out of kotoba-lang/browser (ADR-2607051100) — the only file under
    browser.compat.quickjs* with zero coupling to browser's own domain model
    (audit/dom-bridge/net/origin/profile/runtime/storage/event-loop). The
    other quickjs.* adapter/binding/execution namespaces stay in browser: they

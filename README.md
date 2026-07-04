@@ -4,7 +4,7 @@ QuickJS/QuickJS-NG WASM binary loading contract: magic-byte validation,
 SHA-256 integrity checking, and JVM/CLJS binary loading
 (`quickjs.binary/load-wasm-file` on the JVM, `load-url` on CLJS).
 
-Split out of `kotoba-lang/browser` (ADR-2607041700), where it lived as
+Split out of `kotoba-lang/browser` (ADR-2607051100), where it lived as
 `browser.compat.quickjs-binary`.
 
 ## Scope: why this repo is smaller than "all of browser's QuickJS code"
