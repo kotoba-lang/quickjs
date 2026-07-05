@@ -24,8 +24,15 @@
        (apply str (map #(format "%02x" (bit-and 0xff %)) digest)))))
 
 (defn descriptor
+  "`bytes` is a JVM byte array on :clj (`count` works directly) but a
+   `js/Uint8Array` on :cljs (`load-url`'s `fetch().arrayBuffer()` result) --
+   `js/Uint8Array` doesn't implement ClojureScript's `ICounted`, so plain
+   `count` throws `No protocol method ICounted.-count defined` on every
+   real :cljs call (confirmed via the real ClojureScript/Node compiler,
+   never caught before since this repo has no :cljs test toolchain checked
+   in). `.-length` is the correct, direct way to size a typed array."
   [{:keys [bytes path sha256] :as opts}]
-  (let [size (count bytes)]
+  (let [size #?(:clj (count bytes) :cljs (.-length bytes))]
     {:quickjs.binary/path path
      :quickjs.binary/sha256 #?(:clj (or sha256 (sha256-hex bytes))
                                :cljs sha256)
