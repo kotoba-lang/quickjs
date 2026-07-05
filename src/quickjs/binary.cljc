@@ -23,6 +23,48 @@
      (let [digest (.digest (MessageDigest/getInstance "SHA-256") bytes)]
        (apply str (map #(format "%02x" (bit-and 0xff %)) digest)))))
 
+#?(:cljs
+   (defn- byte->hex
+     [b]
+     (let [hex (.toString (bit-and b 0xff) 16)]
+       (if (= 1 (.-length hex)) (str "0" hex) hex))))
+
+#?(:cljs
+   (defn- array-buffer->hex
+     "Lowercase hex digest string from a digest `ArrayBuffer`, byte-for-byte
+      identical in format to :clj's `sha256-hex` (`format \"%02x\"` per byte,
+      concatenated) so a hash computed here for the same bytes matches the
+      JVM-computed hash exactly."
+     [buf]
+     (let [bytes (js/Uint8Array. buf)
+           n (.-length bytes)]
+       (loop [i 0 acc (transient [])]
+         (if (< i n)
+           (recur (inc i) (conj! acc (byte->hex (aget bytes i))))
+           (apply str (persistent! acc)))))))
+
+#?(:cljs
+   (defn sha256-hex
+     "Async counterpart to :clj's `sha256-hex`: computes a real SHA-256 over
+      `bytes` (a `js/Uint8Array`) via the Web Crypto API and returns a
+      Promise resolving to the same lowercase hex digest format `:clj`
+      produces. There is no synchronous digest API in browsers, so unlike
+      :clj this cannot be a plain function returning a string -- callers
+      (`load-url`) must `.then` it before building a `descriptor`.
+
+      Fails loudly (rejects) rather than degrading silently when
+      `js/crypto.subtle` is unavailable (e.g. a non-secure context that
+      isn't https/localhost) -- returning a descriptor with a nil/skipped
+      hash in that case would silently defeat the integrity check
+      `attach-binary`/`verify-integrity` exist for, which is the exact bug
+      this function fixes."
+     [bytes]
+     (if (and (exists? js/crypto) (exists? js/crypto.subtle))
+       (-> (.digest js/crypto.subtle "SHA-256" bytes)
+           (.then array-buffer->hex))
+       (js/Promise.reject
+        (js/Error. "quickjs.binary/sha256-hex: js/crypto.subtle unavailable (requires a secure context, e.g. https or localhost)")))))
+
 (defn descriptor
   "`bytes` is a JVM byte array on :clj (`count` works directly) but a
    `js/Uint8Array` on :cljs (`load-url`'s `fetch().arrayBuffer()` result) --
@@ -57,6 +99,13 @@
 
 #?(:cljs
    (defn load-url
+     "Fetches `url`, then computes a real SHA-256 over the response bytes
+      (via `sha256-hex`'s Web Crypto digest, an additional async step
+      after `.arrayBuffer()`) BEFORE building the descriptor, passing the
+      computed hex string in as `:sha256`. This keeps `descriptor` itself
+      synchronous and unchanged in shape -- `descriptor`'s :cljs branch
+      already just passes through whatever `:sha256` it's given, so no
+      change to `descriptor` was needed, only to what `load-url` gives it."
      ([url]
       (load-url url {}))
      ([url {:keys [signal]}]
@@ -67,7 +116,9 @@
          (.then #(.arrayBuffer %))
          (.then (fn [buf]
                   (let [bytes (js/Uint8Array. buf)]
-                    (descriptor {:path url :bytes bytes})))))))))
+                    (-> (sha256-hex bytes)
+                        (.then (fn [hex]
+                                 (descriptor {:path url :bytes bytes :sha256 hex}))))))))))))
 
 (defn attach-binary
   ([binding binary]
