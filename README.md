@@ -31,11 +31,11 @@ standalone, reusable "quickjs" library today.
 | | |
 |---|---|
 | Role | engine-adapter substrate |
-| Tests | `clojure -M:test` |
+| Tests | `kbb -M:test` |
 | Actual JS execution | not here — see `kotoba-lang/browser`'s `browser.compat.quickjs-wasm` (CLJS + `quickjs-emscripten-core`/`@jitl/quickjs-singlefile-cjs-release-sync`, not buildable from that repo today; no shadow-cljs/npm toolchain checked in) |
 
 ## Test
 
 ```bash
-clojure -M:test
+kbb -M:test
 ```
